@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15.2-alpine
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect_pass
+      POSTGRES_DB: prefect
+    volumes:
+      - prefect_postgres:/var/lib/postgresql/data
+    networks:
+      - signals-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U prefect" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prefect:
+    image: prefecthq/prefect:2.14.0-python3.11
+    restart: always
+    environment:
+      - PREFECT_API_URL=http://0.0.0.0:4200/api
+      - PREFECT_SERVER_API_HOST=0.0.0.0
+      - PREFECT_SERVER_API_PORT=4200
+      - PREFECT_LOGGING_LEVEL=INFO
+      - PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect_pass@postgres:5432/prefect
+    ports:
+      - "4200:4200"
+    networks:
+      - signals-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: prefect server start
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - PREFECT_API_URL=http://prefect:4200/api
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    volumes:
+      - ./storage/data:/app/storage/data # Mount local storage for testing
+    networks:
+      - signals-network
+    depends_on:
+      - prefect
+
+networks:
+  signals-network:
+    name: signals-network
+
+volumes:
+  prefect_postgres:

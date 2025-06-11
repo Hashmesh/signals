@@ -1,0 +1,11 @@
+# prefect.yaml
+name: signals
+prefect-version: 2.20.18
+work_pool:
+  name: worker-pool1
+  work_queue_name: default
+  job_variables: {}
+  job_configuration: {}
+deployments:
+  - path: deployments/tree-news-deployment.yaml
+

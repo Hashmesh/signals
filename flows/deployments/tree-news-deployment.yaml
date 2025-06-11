@@ -1,0 +1,16 @@
+# deployments/tree-news-deployment.yaml
+deployment:
+  name: tree-news
+  version: null
+  tags: []
+  description: "Tree of Alpha News Ingestion Flow"
+  schedule:
+    cron: "*/5 * * * *"
+    timezone: "UTC"
+  flow_name: tree_of_alpha_news_ingest
+  entrypoint: flows/news/tree_news.py:tree_of_alpha_news_ingest
+  parameters: {}
+  work_pool:
+    name: worker-pool1
+    work_queue_name: default
+    job_variables: {}
