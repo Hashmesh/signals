@@ -9,11 +9,16 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from io import BytesIO
 import psycopg2
+import hashlib
 
 NEWS_API_URL = os.getenv("NEWS_API_URL")
 R2_BUCKET_NAME = os.getenv("TREE_OF_ALPHA_NEWS_BUCKET")
 R2_PREFIX = os.getenv("TREE_OF_ALPHA_NEWS_PREFIX")
 NEON_CONN = os.getenv("NEON_CONN")
+
+def get_deterministic_id(record):
+    base = f"{record.get('title', '')}-{record.get('url', '')}"
+    return hashlib.sha256(base.encode()).hexdigest()
 
 @task
 def fetch_news():
@@ -26,7 +31,7 @@ def normalize_news(records):
     rows = []
     for r in records:
         row = {
-            "id": r.get("_id"),
+            "id": r.get("_id") or get_deterministic_id(r),
             "source": r.get("source"),
             "title": r.get("title"),
             "url": r.get("url"),
@@ -52,8 +57,10 @@ def store_to_r2_parquet(records):
     pq.write_table(table, out_buffer, compression='gzip')
     out_buffer.seek(0)
 
-    key = f"{R2_PREFIX}/year={year}/month={month:02d}/day={day:02d}/hour={hour:02d}/batch.parquet"
-    s3 = boto3.client("s3", endpoint_url=os.getenv("R2_ENDPOINT"), aws_access_key_id=os.getenv("R2_ACCESS_KEY"), aws_secret_access_key=os.getenv("R2_SECRET_KEY"))
+    key = f"{R2_PREFIX}/year={year}/month={month:02d}/day={day:02d}/hour={hour:02d}/batch_{ts.strftime('%Y%m%dT%H%M%S')}.parquet"
+    s3 = boto3.client("s3", endpoint_url=os.getenv("R2_ENDPOINT"), 
+                      aws_access_key_id=os.getenv("R2_ACCESS_KEY"), 
+                      aws_secret_access_key=os.getenv("R2_SECRET_KEY"))
     s3.upload_fileobj(out_buffer, R2_BUCKET_NAME, key)
 
 @task

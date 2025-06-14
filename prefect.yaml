@@ -7,5 +7,26 @@ work_pool:
   job_variables: {}
   job_configuration: {}
 deployments:
-  - path: deployments/tree-news-deployment.yaml
+- path: deployments/tree-news-deployment.yaml
 
+- name: tree-news
+  version:
+  tags: []
+  description: Tree of Alpha News Ingestion Flow
+  entrypoint: flows/news/tree_news.py:tree_of_alpha_news_ingest
+  parameters: {}
+  work_pool:
+    name: worker-pool1
+    work_queue_name: default
+    job_variables: {}
+  schedules:
+  - cron: '*/5 * * * *'
+    timezone: UTC
+    day_or: true
+    active: true
+  pull:
+  - prefect.deployments.steps.git_clone:
+      repository: https://github.com/Hashmesh/signals.git
+      branch: main
+      access_token: '{{ prefect.blocks.secret.deployment-tree-news-tree-of-alpha-news-ingest-repo-token
+        }}'
